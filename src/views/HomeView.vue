@@ -100,19 +100,18 @@
 import VideoPlayer from "@/components/VideoPlayer.vue";
 
 export default {
-  name: 'HomeView', // Имя компонента
+  name: 'HomeView',
   components: {
     VideoPlayer
   },
   data() {
     return {
       collapsed: false,
-      // Теперь массив объектов { url: string, name: string }
       videos: [],
       objectsAccordionOpen: false,
       violationsAccordionOpen: false,
       showReportDialog: false,
-      selectedVideosForReport: [] // Массив ИНДЕКСОВ выбранных видео
+      selectedVideosForReport: []
     };
   },
   computed: {
@@ -138,8 +137,7 @@ export default {
         for (let i = 0; i < filesToProcessCount; i++) {
             const file = files[i];
             const objectURL = URL.createObjectURL(file);
-            const fileName = file.name; // Получаем имя файла
-            // Добавляем объект в массив
+            const fileName = file.name;
             this.videos.push({ url: objectURL, name: fileName });
             filesAddedCount++;
             console.log(`[HomeView] Added Object URL: ${objectURL} for file: ${fileName}`);
@@ -153,12 +151,10 @@ export default {
         console.log('[HomeView] removeVideo called with URL:', urlToDelete);
         if (!urlToDelete || typeof urlToDelete !== 'string') { console.error('[HomeView] Invalid URL received for deletion:', urlToDelete); return; }
         console.log('[HomeView] Current videos before removal:', JSON.parse(JSON.stringify(this.videos)));
-        // Ищем индекс по URL внутри объекта
         const indexToDelete = this.videos.findIndex(video => video.url === urlToDelete);
         console.log(`[HomeView] Found index for URL ${urlToDelete}:`, indexToDelete);
         if (indexToDelete !== -1) {
             try {
-                // Отзываем URL (он передается напрямую)
                 URL.revokeObjectURL(urlToDelete);
                 console.log(`[HomeView] Revoked Object URL: ${urlToDelete}`);
             } catch (error) { console.error(`[HomeView] Error revoking Object URL ${urlToDelete}:`, error); }
@@ -180,11 +176,9 @@ export default {
         });
     },
 
-    // --- Методы для Аккордеонов ---
     toggleObjectsAccordion() { this.objectsAccordionOpen = !this.objectsAccordionOpen; },
     toggleViolationsAccordion() { this.violationsAccordionOpen = !this.violationsAccordionOpen; },
 
-    // --- Методы для Диалога Отчета ---
     openReportDialog() {
         this.selectedVideosForReport = [];
         this.showReportDialog = true;
@@ -195,12 +189,11 @@ export default {
         console.log("[HomeView] Report dialog closed.");
     },
     generateReport() {
-        // selectedVideosForReport содержит ИНДЕКСЫ
         console.log("[HomeView] Generating report for video indices:", this.selectedVideosForReport);
-        // Получаем полные объекты выбранных видео
+       
         const selectedVideoObjects = this.selectedVideosForReport.map(index => this.videos[index]);
         console.log("[HomeView] Selected video objects:", selectedVideoObjects);
-        // Используем имена файлов в сообщении
+      
         alert(`Запрошена генерация отчета для видео: ${selectedVideoObjects.map(v => v.name).join(', ')}`);
         this.closeReportDialog();
     }
@@ -213,36 +206,34 @@ export default {
 </script>
 
 <style scoped>
-/* --- Основные стили --- */
+
 .app-container { display: flex; height: 100vh; overflow: hidden; background-color: #f4f4f4; }
 
-/* --- Стили Сайдбара --- */
-.sidebar { /* ... (без изменений) ... */ background: white; padding: 10px; width: 250px; transition: width 0.3s ease; flex-shrink: 0; overflow-x: hidden; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; border-right: 1px solid #ccc; }
-.sidebar.collapsed { /* ... (без изменений) ... */ width: 50px; padding: 10px 0; align-items: center; overflow-y: hidden; }
-.sidebar .action-button, .sidebar .toggle-button { /* ... (без изменений) ... */ padding: 8px 12px; cursor: pointer; border: 1px solid #ccc; background-color: #e9e9e9; border-radius: 4px; white-space: nowrap; text-align: left; width: 100%; }
+
+.sidebar {   background: white; padding: 10px; width: 250px; transition: width 0.3s ease; flex-shrink: 0; overflow-x: hidden; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; border-right: 1px solid #ccc; }
+.sidebar.collapsed {   width: 50px; padding: 10px 0; align-items: center; overflow-y: hidden; }
+.sidebar .action-button, .sidebar .toggle-button {   padding: 8px 12px; cursor: pointer; border: 1px solid #ccc; background-color: #e9e9e9; border-radius: 4px; white-space: nowrap; text-align: left; width: 100%; }
 .sidebar .action-button:hover:not(:disabled) { background-color: #dcdcdc; }
 .sidebar .action-button:disabled { cursor: not-allowed; opacity: 0.6; }
 .sidebar.collapsed .toggle-button { width: 30px; padding: 8px 0; text-align: center; }
 .sidebar.collapsed .action-button, .sidebar.collapsed .accordion-container { display: none; }
 
-/* --- Стили Аккордеонов --- */
-.accordion-container { /* ... (без изменений) ... */ margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px; }
-.accordion { /* ... (без изменений) ... */ border-bottom: 1px solid #eee; }
-.accordion-header { /* ... (без изменений) ... */ padding: 10px 5px; cursor: pointer; background-color: #f9f9f9; display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 0.9em; }
+.accordion-container {  margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px; }
+.accordion {  border-bottom: 1px solid #eee; }
+.accordion-header {  padding: 10px 5px; cursor: pointer; background-color: #f9f9f9; display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 0.9em; }
 .accordion-header:hover { background-color: #f0f0f0; }
-.accordion-arrow { /* ... (без изменений) ... */ font-size: 0.8em; }
-.accordion-content { /* ... (без изменений) ... */ padding: 10px; font-size: 0.85em; background-color: #fff; border-top: 1px solid #eee; }
-.item-placeholder { /* ... (без изменений) ... */ padding: 5px; margin-top: 5px; background-color: #fafafa; border: 1px dashed #ddd; font-size: 0.9em; color: #555; }
+.accordion-arrow {  font-size: 0.8em; }
+.accordion-content {  padding: 10px; font-size: 0.85em; background-color: #fff; border-top: 1px solid #eee; }
+.item-placeholder { padding: 5px; margin-top: 5px; background-color: #fafafa; border: 1px dashed #ddd; font-size: 0.9em; color: #555; }
 
-/* --- Стили Видео Контейнера --- */
 .video-container {
     flex: 1;
     display: grid;
     background-color: #6c6c6c;
     grid-template-columns: repeat(2, 1fr);
     grid-template-rows: repeat(2, 1fr);
-    gap: 15px; /* Немного увеличим зазор для названий */
-    padding: 15px; /* Немного увеличим отступы */
+    gap: 15px;
+    padding: 15px;
     overflow: auto;
     position: relative;
 }
@@ -266,16 +257,16 @@ export default {
     text-overflow: ellipsis; /* Добавляем троеточие */
     flex-shrink: 0; /* Не позволяем сжиматься */
 }
-.no-videos-message { /* ... (без изменений) ... */ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffffff; font-size: 1.2em; text-align: center; grid-column: 1 / -1; grid-row: 1 / -1; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: rgba(0, 0, 0, 0.5); border-radius: 8px; pointer-events: none; }
+.no-videos-message {   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffffff; font-size: 1.2em; text-align: center; grid-column: 1 / -1; grid-row: 1 / -1; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: rgba(0, 0, 0, 0.5); border-radius: 8px; pointer-events: none; }
 
 /* --- Стили Диалогового окна --- */
-.dialog-overlay { /* ... (без изменений) ... */ position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-.dialog-box { /* ... (без изменений) ... */ background-color: white; padding: 25px 30px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); min-width: 300px; max-width: 90%; position: relative; }
-.dialog-close-button { /* ... (без изменений) ... */ position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 1.5em; cursor: pointer; color: #aaa; line-height: 1; }
+.dialog-overlay {   position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+.dialog-box {   background-color: white; padding: 25px 30px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); min-width: 300px; max-width: 90%; position: relative; }
+.dialog-close-button {   position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 1.5em; cursor: pointer; color: #aaa; line-height: 1; }
 .dialog-close-button:hover { color: #333; }
-.dialog-box h3 { /* ... (без изменений) ... */ margin-top: 0; margin-bottom: 20px; text-align: center; }
-.dialog-checkbox-group { /* ... (без изменений) ... */ margin-bottom: 25px; max-height: 200px; overflow-y: auto; }
-.checkbox-item { /* ... (без изменений) ... */ display: block; margin-bottom: 10px; }
+.dialog-box h3 {   margin-top: 0; margin-bottom: 20px; text-align: center; }
+.dialog-checkbox-group {   margin-bottom: 25px; max-height: 200px; overflow-y: auto; }
+.checkbox-item {   display: block; margin-bottom: 10px; }
 .checkbox-item input[type="checkbox"] { margin-right: 8px; }
 .checkbox-item label {
     cursor: pointer;
@@ -287,7 +278,7 @@ export default {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.dialog-confirm-button { /* ... (без изменений) ... */ display: block; width: 100%; padding: 10px 15px; border: none; background-color: #007bff; color: white; border-radius: 5px; cursor: pointer; font-size: 1em; transition: background-color 0.2s ease; }
+.dialog-confirm-button {   display: block; width: 100%; padding: 10px 15px; border: none; background-color: #007bff; color: white; border-radius: 5px; cursor: pointer; font-size: 1em; transition: background-color 0.2s ease; }
 .dialog-confirm-button:hover:not(:disabled) { background-color: #0056b3; }
 .dialog-confirm-button:disabled { background-color: #cccccc; cursor: not-allowed; }
 

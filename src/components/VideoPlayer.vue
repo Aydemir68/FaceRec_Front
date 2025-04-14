@@ -10,8 +10,8 @@
 
 <script>
 export default {
-  props: ['src'], // src (URL видео) уже получаем как пропс
-  emits: ['delete-video'], // Явно объявляем генерируемые события (хорошая практика в Vue 3)
+  props: ['src'],
+  emits: ['delete-video'],
   data() {
     return {
       isPlaying: false,
@@ -21,9 +21,9 @@ export default {
   methods: {
     togglePlay() {
       const video = this.$refs.video;
-       if (!video) return; // Добавим проверку на случай, если $ref еще не доступен
+       if (!video) return; 
       if (video.paused) {
-        video.play().catch(e => console.error("Play error:", e)); // Добавим обработку ошибок play()
+        video.play().catch(e => console.error("Play error:", e));
         this.isPlaying = true;
       } else {
         video.pause();
@@ -34,21 +34,18 @@ export default {
        if (!this.$refs.video) return;
       this.$refs.video.volume = this.volume / 100;
     },
-    // Метод для запроса удаления
     requestDelete() {
       console.log('[VideoPlayer] requestDelete called for src:', this.src);
       if (!this.src) {
         console.error('[VideoPlayer] Cannot emit delete event: src is missing.');
         return;
       }
-      // --- Конец Отладки ---
       this.$emit('delete-video', this.src);
     }
   },
   mounted() {
-    // Устанавливаем начальную громкость при монтировании
     if (this.$refs.video) {
-        this.changeVolume(); // Установить начальную громкость
+        this.changeVolume();
         // Слушатель для обновления isPlaying, если пользователь нажимает паузу/плей на самом видео
         this.$refs.video.onplay = () => this.isPlaying = true;
         this.$refs.video.onpause = () => this.isPlaying = false;
@@ -83,20 +80,20 @@ video {
   flex-shrink: 0;
   display: flex;
   justify-content: center;
-  align-items: center; /* Выравниваем элементы управления по центру */
+  align-items: center; 
   gap: 10px;
-  padding: 5px 0; /* Уменьшим вертикальный padding */
+  padding: 5px 0; 
   background-color: rgba(0, 0, 0, 0.7);
-  position: absolute; /* Позиционируем контролы внизу */
+  position: absolute; 
   bottom: 0;
   left: 0;
   right: 0;
-  opacity: 0; /* Скрываем по умолчанию */
-  transition: opacity 0.3s ease; /* Плавное появление */
+  opacity: 0; 
+  transition: opacity 0.3s ease; 
 }
 
 .video-player:hover .controls {
-    opacity: 1; /* Показываем при наведении на плеер */
+    opacity: 1; 
 }
 
 .controls button {
@@ -109,34 +106,34 @@ video {
 }
 .controls input[type="range"] {
     cursor: pointer;
-    width: 80px; /* Ограничим ширину слайдера */
+    width: 80px;
 }
 
 .delete-button {
   position: absolute;
   top: 5px;
   right: 5px;
-  background-color: rgba(255, 0, 0, 0.6); /* Красный, полупрозрачный */
+  background-color: rgba(255, 0, 0, 0.6);
   color: white;
   border: none;
-  border-radius: 50%; /* Круглая кнопка */
-  width: 24px;  /* Фикс. размер */
-  height: 24px; /* Фикс. размер */
-  font-size: 14px; /* Размер крестика */
-  line-height: 24px; /* Вертикальное выравнивание крестика */
+  border-radius: 50%; 
+  width: 24px;  
+  height: 24px;
+  font-size: 14px;
+  line-height: 24px; 
   text-align: center;
   cursor: pointer;
-  z-index: 10; /* Поверх видео */
-  opacity: 0; /* Скрываем по умолчанию */
+  z-index: 10; 
+  opacity: 0; 
   transition: opacity 0.3s ease, background-color 0.2s ease;
 }
 
 .video-player:hover .delete-button {
-    opacity: 1; /* Показываем при наведении на плеер */
+    opacity: 1;
 }
 
 
 .delete-button:hover {
-  background-color: rgba(255, 0, 0, 1); /* Ярко-красный при наведении */
+  background-color: rgba(255, 0, 0, 1); 
 }
 </style>
