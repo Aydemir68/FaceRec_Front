@@ -211,6 +211,16 @@ tr:hover { background-color: #f0f0f0; }
   text-overflow: ellipsis;
 }
 
+.close-button{
+  height: 1.8rem;
+  border: solid 1px gray;
+  border-radius: 3px;
+}
+
+.close-button:hover{
+  background-color: rgb(190, 190, 190);
+}
+
 .cell-input:focus {
   border: 1px solid #2196F3;
   background: #eaf4fd;
