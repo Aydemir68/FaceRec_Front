@@ -12,6 +12,10 @@
         <button class="close-button" @click="$emit('close')" title="Закрыть">×</button>
       </div>
     </div>
+    <div class="table-stats">
+      <span>Количество входов: {{ countIn }}</span>
+      <span style="margin-left: 20px;">Количество выходов: {{ countOut }}</span>
+    </div>
     <div class="table-container">
       <table>
         <thead>
@@ -36,6 +40,7 @@
   </div>
 </template>
 
+// ... existing code ...
 <script>
 import { read, utils } from 'xlsx';
 
@@ -55,37 +60,140 @@ export default {
       fileName: '',
       isEditing: false,
       hasChanges: false,
-      originalData: null
+      originalData: null,
+      // Фиксированные заголовки (ваш список)
+      // Можно вынести в константы, если они не меняются динамически
+      targetHeadersConst: [
+        'Наименование ПКО',
+        'Время',
+        'Номер идентификатора',
+        'Направление',
+        'Вид операции',
+        'Содержание операции',
+        'Время разрешения/Сообщения о проведенной операции'
+      ]
     }
   },
   computed: {
     displayData() {
       return this.isEditing ? this.editableData : this.data;
+    },
+    countIn() {
+      // Индекс столбца "Направление"
+      const idx = this.headers.findIndex(h => h.toLowerCase().includes('направление'));
+      if (idx === -1) return 0;
+      return this.data.filter(row => (row[idx] || '').toString().toLowerCase().includes('вход')).length;
+    },
+    countOut() {
+      const idx = this.headers.findIndex(h => h.toLowerCase().includes('направление'));
+      if (idx === -1) return 0;
+      return this.data.filter(row => (row[idx] || '').toString().toLowerCase().includes('выход')).length;
     }
   },
   emits: ['close'],
   async mounted() {
+    this.headers = [...this.targetHeadersConst]; // Инициализация заголовков по умолчанию
     await this.parseExcel();
   },
   methods: {
+    // ... остальной код компонента ...
+
     async parseExcel() {
       try {
         this.fileName = this.file.name;
+        const targetHeaders = [
+          'Наименование ПКО',
+          'Время',
+          'Номер идентификатора',
+          'Направление',
+          'Вид операции',
+          'Содержание операции',
+          'Время разрешения/Сообщения о проведенной операции'
+        ];
+        const normalize = s => (s || '').toString().replace(/\s+/g, '').toLowerCase();
+        const normalizedTargets = targetHeaders.map(normalize);
         const buffer = await this.file.arrayBuffer();
         const workbook = read(buffer);
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
-        const jsonData = utils.sheet_to_json(worksheet, { header: 1 });
-        if (jsonData.length > 0) {
-          this.headers = jsonData[0];
-          this.data = jsonData.slice(1);
+        const jsonDataRaw = utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+        if (!jsonDataRaw || jsonDataRaw.length === 0) {
+          this.headers = targetHeaders;
+          this.data = [];
           this.originalData = JSON.stringify(this.data);
+          alert('Файл пустой или не содержит данных');
+          return;
+        }
+
+        // --- Автоопределение строк заголовков ---
+        // Сканируем первые 10 строк, ищем строки, где есть хотя бы одно целевое слово
+        let headerRowsCount = 0;
+        const maxScanRows = Math.min(10, jsonDataRaw.length);
+        for (let i = 0; i < maxScanRows; i++) {
+          const row = jsonDataRaw[i] || [];
+          const rowStr = row.map(normalize).join(' ');
+          if (normalizedTargets.some(t => rowStr.includes(t))) {
+            headerRowsCount = i + 1;
+          }
+        }
+        if (headerRowsCount === 0) headerRowsCount = 1; // fallback: хотя бы первая строка
+        const headerRows = jsonDataRaw.slice(0, headerRowsCount);
+        const dataContentRows = jsonDataRaw.slice(headerRowsCount);
+        // --- Конец автоопределения ---
+
+        // Строим для каждой колонки путь из всех строк заголовков, учитывая merged cells
+        const colCount = Math.max(...headerRows.map(r => r.length));
+        const filledHeaders = [];
+        for (let row = 0; row < headerRowsCount; row++) {
+          filledHeaders[row] = [];
+          for (let col = 0; col < colCount; col++) {
+            if (headerRows[row][col] && headerRows[row][col].toString().trim() !== '') {
+              filledHeaders[row][col] = headerRows[row][col];
+            } else if (row > 0) {
+              filledHeaders[row][col] = filledHeaders[row - 1][col] || '';
+            } else {
+              filledHeaders[row][col] = '';
+            }
+          }
+        }
+        // Для каждого столбца формируем путь из всех строк заголовков
+        const columnPaths = [];
+        for (let col = 0; col < colCount; col++) {
+          let path = filledHeaders.map(row => row[col] || '').join(' ').trim();
+          columnPaths.push(normalize(path));
+        }
+        // Для каждого целевого столбца ищем первый подходящий индекс (по подстроке)
+        const targetIndexes = normalizedTargets.map(target => {
+          let idx = columnPaths.findIndex(path => path.includes(target) || target.includes(path));
+          return idx;
+        });
+        // Формируем данные: для каждой строки берем значения по нужным индексам, если нет — ''
+        const filteredData = dataContentRows.map(row =>
+          targetIndexes.map(idx => (idx !== -1 && row && row[idx] !== undefined ? row[idx] : ''))
+        );
+        this.headers = targetHeaders;
+        this.data = filteredData;
+        this.originalData = JSON.stringify(this.data);
+        if (this.data.length === 0 && dataContentRows.length > 0) {
+          alert("Данные были найдены в файле, но не удалось сопоставить их с целевыми столбцами. Проверьте структуру файла.");
         }
       } catch (error) {
         console.error('Error parsing Excel file:', error);
-        alert('Ошибка при чтении Excel файла');
+        alert('Ошибка при чтении Excel файла. См. консоль (F12) для деталей.');
+        this.headers = [
+          'Наименование ПКО',
+          'Время',
+          'Номер идентификатора',
+          'Направление',
+          'Вид операции',
+          'Содержание операции',
+          'Время разрешения/Сообщения о проведенной операции'
+        ];
+        this.data = [];
+        this.originalData = JSON.stringify(this.data);
       }
     },
+
     startEditing() {
       this.editableData = JSON.parse(JSON.stringify(this.data));
       this.isEditing = true;
@@ -95,7 +203,7 @@ export default {
       if (confirm('Отменить все изменения?')) {
         this.isEditing = false;
         this.hasChanges = false;
-        this.editableData = [];
+        this.editableData = []; // Очищаем редактируемые данные
       }
     },
     markAsChanged() {
@@ -103,7 +211,7 @@ export default {
     },
     saveChanges() {
       this.data = JSON.parse(JSON.stringify(this.editableData));
-      this.originalData = JSON.stringify(this.data);
+      this.originalData = JSON.stringify(this.data); // Обновляем originalData после сохранения
       this.isEditing = false;
       this.hasChanges = false;
     }
@@ -111,43 +219,44 @@ export default {
 }
 </script>
 
+
 <style scoped>
 .excel-viewer {
   height: 100%;
   display: flex;
   flex-direction: column;
   background: white;
-  font-size: 17px;
+  font-size: 14.5px; /* уменьшено на ~15% */
 }
 
 .excel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 0 15px 0;
+  padding: 0 0 13px 0; /* уменьшено */
   border-bottom: 1px solid #ddd;
-  margin-bottom: 15px;
-  font-size: 19px;
+  margin-bottom: 13px; /* уменьшено */
+  font-size: 16px; /* уменьшено */
 }
 
 .excel-header h3 {
   margin: 0;
-  font-size: 1.2em;
+  font-size: 1.05em; /* уменьшено */
   color: #333;
 }
 
 .header-actions {
   display: flex;
-  gap: 8px;
+  gap: 7px;
   align-items: center;
 }
 
 .action-button {
-  padding: 6px 12px;
+  padding: 5px 10px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 12px;
   transition: background-color 0.2s;
 }
 .edit-button { background-color: #2196F3; color: white; }
@@ -158,12 +267,18 @@ export default {
 .cancel-button { background-color: #f44336; color: white; }
 .cancel-button:hover { background-color: #d32f2f; }
 
+.table-stats {
+  font-size: 13px;
+  margin: 8px 0 4px 0;
+  color: #333;
+}
+
 .table-container {
   flex: 1;
   overflow: auto;
   border: 1px solid #ddd;
   border-radius: 4px;
-  font-size: 17px;
+  font-size: 14.5px; /* уменьшено */
 }
 
 table {
@@ -175,10 +290,10 @@ table {
 
 th, td {
   border: 1px solid #ddd;
-  padding: 10px 6px;
+  padding: 8.5px 5px; /* уменьшено */
   text-align: left;
-  font-size: 17px;
-  min-width: 120px;
+  font-size: 14.5px; /* уменьшено */
+  min-width: 100px; /* уменьшено */
   max-width: 1px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -190,7 +305,7 @@ th {
   position: sticky;
   top: 0;
   z-index: 1;
-  font-size: 18px;
+  font-size: 15px; /* уменьшено */
 }
 
 tr:nth-child(even) { background-color: #f9f9f9; }
@@ -201,7 +316,7 @@ tr:hover { background-color: #f0f0f0; }
   min-width: 0;
   max-width: 100%;
   height: 100%;
-  padding: 0 4px;
+  padding: 0 3px;
   border: none;
   background: transparent;
   font-size: inherit;
@@ -212,7 +327,7 @@ tr:hover { background-color: #f0f0f0; }
 }
 
 .close-button{
-  height: 1.8rem;
+  height: 1.5rem;
   border: solid 1px gray;
   border-radius: 3px;
 }
