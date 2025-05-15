@@ -96,25 +96,53 @@
       />
     </aside>
 
-    <main class="video-container">
-      <div class="video-wrapper" v-for="video in videos" :key="video.id">
-        <VideoPlayer
-          :video="video"
-          @delete-video="removeVideo"
-        />
-        <div class="video-title" :title="video.title">
-          <span :class="['status-indicator', video.status.toLowerCase()]" :title="`Статус: ${video.status}`">●</span>
-          {{ video.title }}
-          <span v-if="video.description" class="video-description">{{ video.description }}</span>
-        </div>
+    <main class="content-container">
+      <div class="view-tabs">
+        <button 
+          class="tab-button" 
+          :class="{ active: activeView === 'videos' }"
+          @click="activeView = 'videos'"
+        >
+          Видео
+        </button>
+        <button 
+          v-if="selectedExcelFile"
+          class="tab-button" 
+          :class="{ active: activeView === 'excel' }"
+          @click="activeView = 'excel'"
+        >
+          Карточка дня
+        </button>
       </div>
 
-      <p v-if="videos.length === 0 && !isUploadingInProgress" class="no-videos-message">
-        Нажмите "Выбрать видео" в боковой панели, чтобы добавить файлы (до 4)
-      </p>
-      <p v-if="isUploadingInProgress && videos.length === 0" class="no-videos-message">
-        Добавление видео...
-      </p>
+      <div v-if="activeView === 'videos'" class="video-container">
+        <div class="video-wrapper" v-for="video in videos" :key="video.id">
+          <VideoPlayer
+            :video="video"
+            @delete-video="removeVideo"
+          />
+          <div class="video-title" :title="video.title">
+            <span :class="['status-indicator', video.status.toLowerCase()]" :title="`Статус: ${video.status}`">●</span>
+            {{ video.title }}
+            <span v-if="video.description" class="video-description">{{ video.description }}</span>
+          </div>
+        </div>
+
+        <p v-if="videos.length === 0 && !isUploadingInProgress" class="no-videos-message">
+          Нажмите "Выбрать видео" в боковой панели, чтобы добавить файлы (до 4)
+        </p>
+        <p v-if="isUploadingInProgress && videos.length === 0" class="no-videos-message">
+          Добавление видео...
+        </p>
+      </div>
+
+      <div v-if="activeView === 'excel' && selectedExcelFile" class="excel-container">
+        <ExcelViewer
+          :file="selectedExcelFile"
+          @close="closeExcelViewer"
+          @save="handleExcelSave"
+        />
+      </div>
     </main>
 
     <div v-if="showReportDialog" class="dialog-overlay" @click.self="closeReportDialog">
@@ -144,13 +172,6 @@
             </button>
         </div>
     </div>
-
-    <div v-if="showExcelViewer" class="dialog-overlay" @click.self="closeExcelViewer">
-      <ExcelViewer
-        :file="selectedExcelFile"
-        @close="closeExcelViewer"
-      />
-    </div>
   </div>
 </template>
 
@@ -176,8 +197,8 @@ export default {
       isUploadingInProgress: false,
       isGeneratingReport: false,
       reportStatusMessage: '',
-      showExcelViewer: false,
-      selectedExcelFile: null
+      selectedExcelFile: null,
+      activeView: 'videos'
     };
   },
   computed: {
@@ -226,7 +247,7 @@ export default {
         if (filename.endsWith('.xls') || filename.endsWith('.xlsx')) {
           // Обработка файла Excel
           this.selectedExcelFile = file;
-          this.showExcelViewer = true;
+          this.activeView = 'excel';
           event.target.value = null;
           return;
         }
@@ -369,8 +390,17 @@ export default {
       }
     },
     closeExcelViewer() {
-      this.showExcelViewer = false;
       this.selectedExcelFile = null;
+      this.activeView = 'videos';
+    },
+    async handleExcelSave(newFile) {
+      try {
+        this.selectedExcelFile = newFile;
+        alert('Изменения сохранены');
+      } catch (error) {
+        console.error('Error saving Excel file:', error);
+        alert('Ошибка при сохранении файла');
+      }
     }
   },
   beforeUnmount() {
@@ -432,51 +462,79 @@ export default {
 .item-placeholder { padding: 5px; margin-top: 5px; background-color: #fafafa; border: 1px dashed #ddd; font-size: 0.9em; color: #555; }
 
 /* --- Стили Видео Контейнера --- */
+.content-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: #f4f4f4;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 10px 15px 0;
+  background-color: #f4f4f4;
+  border-bottom: 1px solid #ddd;
+}
+
+.tab-button {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  border-bottom: none;
+  background-color: #f8f9fa;
+  cursor: pointer;
+  font-size: 14px;
+  border-radius: 4px 4px 0 0;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  background-color: #e9ecef;
+}
+
+.tab-button.active {
+  background-color: white;
+  border-bottom: 1px solid white;
+  margin-bottom: -1px;
+  font-weight: 500;
+}
+
 .video-container {
-    flex: 1;
-    display: grid;
-    background-color: #6c6c6c;
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-    gap: 15px;
-    padding: 15px;
-    overflow: auto;
-    position: relative;
-}
-.video-wrapper {
-    display: flex;
-    flex-direction: column;
-    background-color: black;
-    border-radius: 4px;
-    overflow: hidden;
-    position: relative;
-    height: 100%;
-}
-.video-title {
-    padding: 5px 8px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    font-size: 0.8em;
-    text-align: left;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-}
-.status-indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 6px;
-  display: inline-block;
-  flex-shrink: 0;
+  flex: 1;
+  display: grid;
+  background-color: #6c6c6c;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 15px;
+  padding: 15px;
+  overflow: auto;
+  position: relative;
 }
 
-.status-indicator.ready { background-color: #4CAF50; /* Зеленый */ }
-.status-indicator.error { background-color: #F44336; /* Красный */ }
+.excel-container {
+  flex: 1;
+  overflow: hidden;
+  background-color: white;
+  padding: 15px;
+}
 
+/* Обновляем стили для ExcelViewer внутри контейнера */
+:deep(.excel-viewer) {
+  position: static;
+  transform: none;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+:deep(.excel-viewer .table-container) {
+  max-height: none;
+  height: calc(100vh - 120px);
+}
 
 .no-videos-message { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffffff; font-size: 1.2em; text-align: center; grid-column: 1 / -1; grid-row: 1 / -1; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: rgba(0, 0, 0, 0.5); border-radius: 8px; pointer-events: none; }
 

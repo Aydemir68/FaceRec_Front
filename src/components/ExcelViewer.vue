@@ -1,8 +1,16 @@
+// ... existing code ...
 <template>
   <div class="excel-viewer">
     <div class="excel-header">
       <h3>{{ fileName }}</h3>
-      <button class="close-button" @click="$emit('close')" title="Закрыть">×</button>
+      <div class="header-actions">
+        <button v-if="!isEditing" class="action-button edit-button" @click="startEditing" title="Редактировать таблицу">Редактировать</button>
+        <template v-else>
+          <button class="action-button save-button" @click="saveChanges" :disabled="!hasChanges" title="Сохранить изменения">Сохранить</button>
+          <button class="action-button cancel-button" @click="cancelEditing" title="Отменить изменения">Отмена</button>
+        </template>
+        <button class="close-button" @click="$emit('close')" title="Закрыть">×</button>
+      </div>
     </div>
     <div class="table-container">
       <table>
@@ -12,8 +20,15 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, rowIndex) in data" :key="rowIndex">
-            <td v-for="(cell, cellIndex) in row" :key="cellIndex">{{ cell }}</td>
+          <tr v-for="(row, rowIndex) in displayData" :key="rowIndex">
+            <td v-for="(cell, cellIndex) in row" :key="cellIndex">
+              <template v-if="isEditing">
+                <input type="text" v-model="editableData[rowIndex][cellIndex]" @input="markAsChanged" class="cell-input" />
+              </template>
+              <template v-else>
+                {{ cell }}
+              </template>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -36,7 +51,16 @@ export default {
     return {
       headers: [],
       data: [],
-      fileName: ''
+      editableData: [],
+      fileName: '',
+      isEditing: false,
+      hasChanges: false,
+      originalData: null
+    }
+  },
+  computed: {
+    displayData() {
+      return this.isEditing ? this.editableData : this.data;
     }
   },
   emits: ['close'],
@@ -52,15 +76,36 @@ export default {
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
         const jsonData = utils.sheet_to_json(worksheet, { header: 1 });
-
         if (jsonData.length > 0) {
           this.headers = jsonData[0];
           this.data = jsonData.slice(1);
+          this.originalData = JSON.stringify(this.data);
         }
       } catch (error) {
         console.error('Error parsing Excel file:', error);
         alert('Ошибка при чтении Excel файла');
       }
+    },
+    startEditing() {
+      this.editableData = JSON.parse(JSON.stringify(this.data));
+      this.isEditing = true;
+      this.hasChanges = false;
+    },
+    cancelEditing() {
+      if (confirm('Отменить все изменения?')) {
+        this.isEditing = false;
+        this.hasChanges = false;
+        this.editableData = [];
+      }
+    },
+    markAsChanged() {
+      this.hasChanges = JSON.stringify(this.editableData) !== this.originalData;
+    },
+    saveChanges() {
+      this.data = JSON.parse(JSON.stringify(this.editableData));
+      this.originalData = JSON.stringify(this.data);
+      this.isEditing = false;
+      this.hasChanges = false;
     }
   }
 }
@@ -68,27 +113,21 @@ export default {
 
 <style scoped>
 .excel-viewer {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  width: 90%;
-  max-width: 1200px;
-  max-height: 90vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  z-index: 1000;
+  background: white;
+  font-size: 17px;
 }
 
 .excel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  padding: 0 0 15px 0;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 15px;
+  font-size: 19px;
 }
 
 .excel-header h3 {
@@ -97,34 +136,53 @@ export default {
   color: #333;
 }
 
-.close-button {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #666;
-  padding: 0 5px;
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
-.close-button:hover {
-  color: #000;
+.action-button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
 }
+.edit-button { background-color: #2196F3; color: white; }
+.edit-button:hover { background-color: #1976D2; }
+.save-button { background-color: #4CAF50; color: white; }
+.save-button:hover:not(:disabled) { background-color: #388E3C; }
+.save-button:disabled { background-color: #cccccc; cursor: not-allowed; }
+.cancel-button { background-color: #f44336; color: white; }
+.cancel-button:hover { background-color: #d32f2f; }
 
 .table-container {
+  flex: 1;
   overflow: auto;
-  max-height: calc(90vh - 100px);
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 17px;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
   background: white;
+  table-layout: fixed;
 }
 
 th, td {
   border: 1px solid #ddd;
-  padding: 8px;
+  padding: 10px 6px;
   text-align: left;
+  font-size: 17px;
+  min-width: 120px;
+  max-width: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 th {
@@ -132,13 +190,29 @@ th {
   position: sticky;
   top: 0;
   z-index: 1;
+  font-size: 18px;
 }
 
-tr:nth-child(even) {
-  background-color: #f9f9f9;
+tr:nth-child(even) { background-color: #f9f9f9; }
+tr:hover { background-color: #f0f0f0; }
+
+.cell-input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 100%;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  font-size: inherit;
+  font-family: inherit;
+  box-sizing: border-box;
+  outline: none;
+  text-overflow: ellipsis;
 }
 
-tr:hover {
-  background-color: #f0f0f0;
+.cell-input:focus {
+  border: 1px solid #2196F3;
+  background: #eaf4fd;
 }
-</style> 
+</style>
