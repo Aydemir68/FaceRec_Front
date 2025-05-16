@@ -573,17 +573,20 @@ export default {
 .dialog-confirm-button:disabled { background-color: #cccccc; cursor: not-allowed; }
 
 :deep(.video-player) {
-    width: 100%;
-    flex-grow: 1;
-    background-color: black;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    position: relative;
+  width: 100%;
+  height: 100%;
+  max-height: 40vh;
+  background-color: black;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
 }
 :deep(.video-player video) {
-  flex-grow: 1; width: 100%;
-  object-fit: cover;
+  flex-grow: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   min-height: 0;
 }
 :deep(.video-player .controls) {
@@ -660,7 +663,7 @@ export default {
 .action-icon {
   background: none;
   border: none;
-  color: #666;
+  color: #668;
   cursor: pointer;
   font-size: 14px;
   padding: 2px 4px;
